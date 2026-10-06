@@ -1,8 +1,11 @@
 # ZipToSize
 
+[![Build](https://github.com/organom/zip-to-size/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/organom/zip-to-size/actions/workflows/ci.yml)
+[![Deploy](https://img.shields.io/github/deployments/organom/zip-to-size/github-pages?label=deploy)](https://github.com/organom/zip-to-size/deployments/github-pages)
+
 A modern, client-side image compression tool that allows users to upload ZIP, RAR, 7z, TAR and other archives containing images and compress them to a target size while maintaining proportions.
 
-Initial commit generated in Manus (https://manus.ai) and improved upon
+Initial commit generated in Manus (https://manus.ai) and improved upon mainly with the help of Claude (claude.ai)
 
 ## 🌟 Features
 
