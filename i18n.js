@@ -1,4 +1,4 @@
-const TRANSLATIONS = {
+export const TRANSLATIONS = {
     en: {
         title: 'ZipToSize - Compress images inside any archive to a target size',
         subtitle: 'Compress your images inside any archive to fit a given size',
@@ -120,4 +120,3 @@ export function setLang(lang) {
 }
 
 export function getLang() { return currentLang; }
-export function getSupportedLangs() { return SUPPORTED_LANGS; }

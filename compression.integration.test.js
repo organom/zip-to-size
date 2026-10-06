@@ -1,14 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 import JSZip from 'jszip';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { CONFIG } from './compression.js';
+import { ImageCompressor } from './image-compressor.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const scriptSrc = readFileSync(resolve(__dirname, 'script.js'), 'utf8')
-    .replaceAll(/^import\s.*?from\s+['"].*?['"];?\s*\n?/gm, '')
-    .replaceAll(/^Archive\.init\(.*?\);\s*\n?/gm, '');
+vi.mock('./libarchive.js', () => ({ Archive: { init: () => {}, open: vi.fn() } }));
+vi.mock('./i18n.js', () => ({ t: (key) => key, setLang: () => {}, getLang: () => 'en' }));
 
 // ─── Minimal valid JPEG (1×1 red pixel, 141 bytes) ───────────────────────────
 const JPEG_1X1 = Uint8Array.from([
@@ -62,7 +58,7 @@ const DOM_HTML = `
     <span id="originalSize"></span>
     <span id="imagesProcessed"></span>
     <span id="compressedSize"></span>
-    <span id="compressionRatio"></span>
+    <span id="savingsPercent"></span>
     <span id="finalSize"></span>
     <span id="spaceSaved"></span>
     <div id="uploadSection"></div>
@@ -70,7 +66,7 @@ const DOM_HTML = `
     <div id="resultSection"></div>
 `;
 
-// ─── Load script into a vm sandbox with JSZip injected ───────────────────────
+// ─── Browser globals: JSZip, Image, canvas and object URLs are mocked ─────────
 document.body.innerHTML = DOM_HTML;
 
 class MockImage {
@@ -87,9 +83,6 @@ class MockImage {
     }
 }
 
-// ─── Patched document: createElement('canvas') returns a mock canvas ─────────
-// The vm sandbox inherits document from globalThis via the prototype chain, but
-// we need createElement to be an own property so the sandbox picks it up first.
 const realCreateElement = document.createElement.bind(document);
 
 function makeMockCanvas() {
@@ -108,64 +101,14 @@ function makeMockCanvas() {
         crypto.getRandomValues(buf);
         callback(buf);
     };
-    return new Proxy(canvas, {
-        set(target, prop, value) {
-            target[prop] = value;
-            return true;
-        },
-    });
+    return canvas;
 }
 
-const mockedDocument = new Proxy(document, {
-    get(target, prop) {
-        if (prop === 'createElement') {
-            return (tag) => tag === 'canvas' ? makeMockCanvas() : realCreateElement(tag);
-        }
-        const val = target[prop];
-        return typeof val === 'function' ? val.bind(target) : val;
-    },
-});
-
-const sandbox = Object.create(globalThis);
-sandbox.JSZip = JSZip;
-sandbox.Image = MockImage;
-sandbox.document = mockedDocument;
-sandbox.Archive = { init: () => {} };
-sandbox.t = (key) => key;
-sandbox.setLang = () => {};
-sandbox.getLang = () => 'en';
-// JSZip 3.x doesn't support Node's Blob — shim Blob as a function returning
-// a Uint8Array so zip.file() accepts the result.
-sandbox.Blob = function BlobShim(parts) {
-    const arrays = (parts || []).map(p => {
-        if (p instanceof Uint8Array) return p;
-        if (p instanceof ArrayBuffer) return new Uint8Array(p);
-        return new Uint8Array(0);
-    });
-    const total = arrays.reduce((s, a) => s + a.length, 0);
-    const buf = new Uint8Array(total);
-    let offset = 0;
-    for (const a of arrays) { buf.set(a, offset); offset += a.length; }
-    buf.size = total;
-    return buf;
-};
-sandbox.File = File;
-sandbox.URL = {
-    createObjectURL: () => 'blob:mock',
-    revokeObjectURL: () => {},
-};
-vm.createContext(sandbox);
-
-const wrapped = `
-(function(global) {
-    ${scriptSrc}
-    global.ImageCompressor = ImageCompressor;
-    global.CONFIG = CONFIG;
-})(this);
-`;
-vm.runInContext(wrapped, sandbox);
-
-const { ImageCompressor, CONFIG } = sandbox;
+vi.stubGlobal('JSZip', JSZip);
+vi.stubGlobal('Image', MockImage);
+vi.spyOn(document, 'createElement').mockImplementation((tag) => tag === 'canvas' ? makeMockCanvas() : realCreateElement(tag));
+URL.createObjectURL = () => 'blob:mock';
+URL.revokeObjectURL = () => {};
 
 // ─── Helper: create compressor with DOM reset ─────────────────────────────────
 function makeCompressor(maxSizeMB = 3.5) {
@@ -190,7 +133,7 @@ describe('compressImages — convergence', () => {
         const targetBytes = targetMB * 1024 * 1024;
 
         const app = makeCompressor(targetMB);
-        app.originalZip = await JSZip.loadAsync(zipArrayBuffer);
+        app.sourceZip = await JSZip.loadAsync(zipArrayBuffer);
         await app.extractImageFiles();
         await app.compressImages();
 
@@ -206,7 +149,7 @@ describe('compressImages — convergence', () => {
         const targetBytes = targetMB * 1024 * 1024;
 
         const app = makeCompressor(targetMB);
-        app.originalZip = await JSZip.loadAsync(zipArrayBuffer);
+        app.sourceZip = await JSZip.loadAsync(zipArrayBuffer);
         await app.extractImageFiles();
         await app.compressImages();
 
@@ -221,7 +164,7 @@ describe('compressImages — convergence', () => {
         const targetMB = 1; // 2.5 MB target — much larger than ~300 bytes of images
 
         const app = makeCompressor(targetMB);
-        app.originalZip = await JSZip.loadAsync(zipArrayBuffer);
+        app.sourceZip = await JSZip.loadAsync(zipArrayBuffer);
         await app.extractImageFiles();
         await app.compressImages();
 

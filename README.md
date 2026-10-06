@@ -8,7 +8,7 @@ Initial commit generated in Manus (https://manus.ai) and improved upon
 
 - **Client-side Processing**: All compression happens in your browser - no server uploads required
 - **Multi-format Archive Support**: Upload ZIP, RAR, 7z, TAR, GZ, BZ2, XZ archives containing images
-- **Smart Compression**: Iteratively adjusts image dimensions and quality to fit within the target ZIP size (converges to 80–100% of target); prioritizes larger files first
+- **Smart Compression**: Iteratively adjusts image dimensions and quality to fit within the target ZIP size (converges to 80–100% of target); larger-than-average files are compressed more aggressively
 - **Format Preservation**: Maintains original file formats (JPEG, PNG, WebP). GIF and BMP are converted to PNG (Canvas API limitation)
 - **Always outputs ZIP**: Output is always a standard ZIP file named `<original>-compressed.zip`
 - **Modern UI**: Clean, responsive design with smooth animations
@@ -48,7 +48,7 @@ The tool uses an iterative convergence approach:
 3. **Initial ratio**: Calculates a starting compression ratio (`target size / total image size`)
 4. **Iterative passes**: Each pass compresses every image — scaling dimensions by `sqrt(ratio)` and adjusting JPEG/WebP quality proportionally — with larger-than-average files receiving a more aggressive per-file ratio to equalize sizes first; then test-zips the result and checks its size
 5. **Ratio adjustment**: If the result is over target, the ratio is reduced by 15%; if under, it is increased by 10%
-6. **Convergence**: The loop stops when the result lands between 80–100% of target, or after 3 consecutive failed iterations
+6. **Convergence**: The loop stops when the result lands between 80–100% of target, when the size changes by less than 0.1% for 3 consecutive iterations, after 3 consecutive failed iterations, or after 50 iterations
 7. **Final assembly**: Re-zips the best result at maximum compression level
 
 ### Supported Formats
@@ -76,14 +76,14 @@ The tool uses an iterative convergence approach:
 - **100% Client-side**: No files are uploaded to any server
 - **Local Processing**: All compression happens in your browser
 - **No Data Collection**: No user data is stored or transmitted
-- **Secure**: Works entirely offline after initial page load
+- **Secure**: Works entirely offline after initial page load (JSZip, Font Awesome and Google Fonts are loaded from CDNs)
 
 ## 📱 Browser Compatibility
 
-- Chrome 60+
-- Firefox 55+
-- Safari 11+
-- Edge 79+
+- Chrome 85+
+- Firefox 79+
+- Safari 14+
+- Edge 85+
 - Mobile browsers with modern JavaScript support
 
 ## 🚀 Deployment
@@ -123,14 +123,19 @@ The suite includes:
 zip-to-size/
 ├── index.html                          # Main HTML file
 ├── styles.css                          # CSS styles and animations
-├── script.js                           # JavaScript functionality
+├── script.js                           # UI bootstrap: theme, language, shortcuts
+├── image-compressor.js                 # ImageCompressor: archive loading, compression loop, DOM updates
+├── compression.js                      # Pure compression logic and constants
+├── i18n.js                             # Translations (en, pt, de)
 ├── libarchive.js                       # libarchive.js (local copy)
 ├── worker-bundle.js                    # libarchive WebWorker bundle (local copy)
 ├── libarchive.wasm                     # libarchive WebAssembly binary (local copy)
 ├── script.test.js                      # Unit tests (Vitest + jsdom)
+├── i18n.test.js                        # Translation key parity tests
 ├── compression.integration.test.js     # Integration tests
 ├── vitest.config.js                    # Vitest configuration
 ├── package.json                        # Node dependencies (dev/test only)
+├── .githooks/pre-push                  # Version bump hook
 └── README.md                           # This file
 ```
 

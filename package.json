@@ -6,21 +6,35 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint ."
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/organom/zip-to-size.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "zip",
+    "compression",
+    "images",
+    "image-compression",
+    "archive",
+    "rar",
+    "7z",
+    "browser",
+    "file-size"
+  ],
+  "author": "Ricardo Gomes",
   "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/organom/zip-to-size/issues"
   },
   "homepage": "https://github.com/organom/zip-to-size#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.4",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
     "jsdom": "^29.0.2",
     "jszip": "^3.10.1",
     "vitest": "^4.1.4"
